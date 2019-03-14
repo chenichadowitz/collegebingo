@@ -1,0 +1,424 @@
+<html>
+  <head>
+    <title>Boring College Class Bingo</title>
+    <!--<link rel="stylesheet" rev="stylesheet" href="collegeBingoJS.css" />-->
+    <style>
+      body {
+        background-color: white;
+        color: black;
+        font-size: 20px;
+        font-family: "Lucida Grande", Verdana, Arial, Helvetica, sans-serif;
+        text-align: center;
+      }
+      h1, th {
+        font-family: Georgia, "Times New Roman", Times, serif;
+        text-align: center;
+      }
+      h1 {
+        font-size: 24px;
+        text-align: center;
+      }
+      h2 {
+        text-align: center;
+      }
+      table {
+        border-collapse: collapse;
+        text-align: center;
+      }
+      th {
+        padding: 10px;
+        border: 2px #666 solid;
+        border-style: hidden hidden solid hidden;
+        text-align: center;
+        font-size: 36px;
+        font-weight: bold;
+        width: 20%;
+      }
+      td {
+        padding: 10px;
+        border: 2px #666 solid;
+        text-align: center;
+        font-size: 12px;
+        width: 40px;
+        height: 40px;
+      }
+      output {
+        font-size: 12px;
+      }
+      #cell12 {
+        background-color: limegreen;
+      }
+    </style>
+    
+    <script type="text/javascript">
+      var cells;
+      var defaultFile = "bingo_default.txt";
+      var defaultOptions;
+      var cellOptions;
+      var deletingItem = false;
+      var fileapi = false;
+      
+      function initialize() {
+        // Check for the various File API support.
+        if (window.File && window.FileReader && window.FileList) {
+          // Great success! All the File APIs are supported.
+          fileapi = true;
+          document.getElementById('files').addEventListener('change', handleFileSelect, false);
+        } else {
+          document.getElementById('uploader').style.display = 'none';
+          alert('The File APIs are not fully supported in this browser.\nUploading new .txt files will not work.');
+        }
+        
+        if(window.localStorage && window['localStorage'] !== null) {
+          // Awesome! Can save the new stuff across sessions with local storage!
+        } else {
+          document.getElementById('resetpersonal').style.display = 'none';
+          alert('Local storage is not supported in this browser.\nUploaded and added content will not be stored across sessions.');
+        }
+        
+        defaultOptions = ['Student who obviously rolled out of bed five minutes ago',
+                            'Student leaving early (>5 minutes)',
+                            'Student arriving late (>5 minutes)',
+                            'Doodling student',
+                            'Blatant cell phone use',
+                            'Attempted subtle cell phone use',
+                            'Cell phone sounds/vibrates during class',
+                            'Student looking at/writing email',
+                            'Student working on something from another class',
+                            'Student trying to stay awake',
+                            'Shameless sleeping student',
+                            'Professor makes a funny joke',
+                            'Student who answers most or all questions the professor asks',
+                            'Five or more students sitting in the front row',
+                            'Student playing classic game on emulator',
+                            'Student eating an entire meal',
+                            'Incredibly attractive member of the opposite sex',
+                            'Three students in a row using laptops',
+                            'Technical difficulties',
+                            'Noticeably foreign professor/TA',
+                            'Student who always talks to the professor right after class ends',
+                            'Student shopping online',
+                            'Guy/girl that will NOT shut up',
+                            'Student not taking notes',
+                            'Student drinking coffee/tea/energy drink',
+                            'Student sitting alone with no one within 1 seat around them',
+                            'Student using 2 desks for their stuff',
+                            'Student putting their feet up on the back of the chair in front of them',
+                            'Student wearing a sweatshirt/jacket and flip-flops',
+                            'Student wearing boots and shorts/a skirt'
+                          ];
+        
+        if(localStorage) {
+          if(localStorage["savedOptions"])
+            cellOptions = JSON.parse(localStorage["savedOptions"]);
+          else
+            localStorage["savedOptions"] = JSON.stringify(defaultOptions);
+            cellOptions = defaultOptions.concat();
+        } else {
+          cellOptions = defaultOptions.concat();
+        }
+        
+        cells = [];
+        for(var i=0; i<25; i++) {
+          cells[i] = false;
+        }
+        cells[12] = true; // Free space is always true        
+        if(cellOptions)
+          shuffle();
+      }
+      
+      function handleFileSelect(evt) {
+        var files = evt.target.files; // FileList object
+
+        // files is a FileList of File objects. List some properties.
+        var f = files[0];
+        var output = [];
+        output.push('<strong>', escape(f.name), '</strong> (', f.type || 'n/a', ') - ',
+                      f.size, ' bytes, last modified: ',
+                      f.lastModifiedDate ? f.lastModifiedDate.toLocaleDateString() : 'n/a');
+        document.getElementById('fileLoaded').innerHTML = 'Loaded file: ' + output.join('') + "<br>";
+        var reader = new FileReader();
+        reader.onload = function(event) {
+          var lines = event.target.result.split('\n');
+          cellOptions = [];
+          var content = ['<ul>'];
+          for(var i=0; i<lines.length; i++) {
+            cellOptions.push( lines[i] );
+            content.push('<li>',lines[i],'</li>');
+          }
+          if(localStorage) {
+            localStorage["savedOptions"] = JSON.stringify(cellOptions);
+          }
+          content.push('</ul>');
+          document.getElementById('fileContents').innerHTML = "<strong>File contents: </strong><br>" + content.join('');
+        };
+        reader.onerror = function(event) {
+          document.getElementById('fileContents').innerHTML = "<h3>File could not be read! Code " + event.target.error.code + "</h3>";
+          console.error("File could not be read! Code " + event.target.error.code);
+        };
+        reader.readAsText(f);
+        document.getElementById('files').value = '';
+      }
+      
+      function hoverOver( cell, over ) {
+        var num = parseInt(cell.id.slice(4));
+        if(over) {
+          var color = (cells[num]) ? "green" : "grey";
+        } else {
+          var color = (cells[num]) ? "limegreen" : "white";
+        }
+        cell.style.backgroundColor = color;
+      }
+      
+      function clicked( cell ) {
+        if( deletingItem ) {
+          var text = cell.innerHTML;
+          var idx = cellOptions.indexOf(text);
+          while( idx != -1 ) {
+            cellOptions.splice(idx, 1);
+            idx = cellOptions.indexOf(text);
+          }
+          if(localStorage) {
+            localStorage["savedOptions"] = JSON.stringify(cellOptions);
+          }
+          var disabled = false;
+          document.getElementById('removebutton').innerHTML = "Remove an item";
+          document.getElementById('item').disabled = disabled;
+          document.getElementById('add').disabled = disabled;
+          document.getElementById('files').disabled = disabled;
+          document.getElementById('clearall').disabled = disabled;
+          document.getElementById('clearboard').disabled = disabled;
+          document.getElementById('reset').disabled = disabled;
+          document.getElementById('shuffle').disabled = disabled;
+          document.getElementById('removeitem').innerHTML = "";
+          deletingItem = false;
+          shuffle();
+        } else {
+          var num = parseInt(cell.id.slice(4));
+          cells[num] = !cells[num];
+          if( cell.style.backgroundColor == "grey" ) {
+            cell.style.backgroundColor = "green";
+          } else {
+            cell.style.backgroundColor = "grey";
+          }
+          if( cells[num] ) checkForBingo(num);
+        }
+      }
+      
+      function shuffle() {
+        if( cellOptions.length < 24 ) { 
+          alert("Not enough content to fill the 24 cells! Please add more.");
+          return;
+        }
+        var text = (document.body.textContent) ? "textContent" : "innerText";
+        var availableOptions = cellOptions.slice(0);
+        for(var i=0; i<25; i++) {
+          if(i != 12) {
+            var idx = Math.floor(Math.random()*availableOptions.length);
+            var cell = document.getElementById('cell'+i);
+            cell.style.backgroundColor = "white";
+            cell[text] = availableOptions[idx];
+            availableOptions.splice(idx, 1);
+            cells[i] = false;
+          }
+        }
+        cells[12] = true;
+      }
+      
+      function checkForBingo( num ) {
+        var row = Math.floor(num/5);
+        var col = num % 5;
+        var bingo = [true, true, row==col, row+col==4]; //row, col, diag down-right, diag down-left
+        for(var i=0; i<5; i++) {
+          if(bingo[0] && !cells[row*5 + i]) bingo[0] = false;
+          if(bingo[1] && !cells[i*5 + col]) bingo[1] = false;
+          if( bingo[2] && !cells[i*5 + i] ) bingo[2] = false;
+          if( bingo[3] && !cells[i*5 + 4 - i] ) bingo[3] = false;
+        }
+        if( bingo[0] || bingo[1] || bingo[2] || bingo[3] ) {
+          alert("BINGO WAS HIS NAME-OH!!!\nCongratulations, you have wasted a small fraction of this class.\nMOOOOAAAAAARRRRRRRR");
+          return;
+        }
+      }
+      
+      function addOneItem() {
+        var element = document.getElementById('item');
+        clearOutput(element);
+        var content = element.value;
+        cellOptions.push(content);
+        if(localStorage) {
+          var savedOptions = JSON.parse(localStorage["savedOptions"]);
+          savedOptions.push(content);
+          localStorage["savedOptions"] = JSON.stringify(savedOptions);
+        }
+        document.getElementById('itemAdded').innerHTML = '<br><strong>Added "'+content+'".<br>Press "Shuffle!" to generate a new board.</strong><br><br>';
+        element.value = "";
+      }
+      
+      function clearOutput( element ) {
+        if( element.name == 'files' ) {
+          document.getElementById('fileLoaded').innerHTML = "";
+          document.getElementById('fileContents').innerHTML = "";
+        }
+        if( element.name == 'item' ) {
+          document.getElementById('itemAdded').innerHTML = "";
+        }
+      }
+      
+      function reset() {
+        if(localStorage) {
+          if( !confirm('ARE YOU SURE YOU WANT TO DO THIS?\nThis will remove all saved additions.') ) {
+            return;
+          }
+          localStorage["savedOptions"] = JSON.stringify(defaultOptions);
+        }
+        cellOptions = defaultOptions.concat();
+        for(var i=0; i<25; i++) {
+          cells[i] = false;
+        }
+        cells[12] = true; // Free space is always true
+        clearAll();
+      }
+      
+      function clearAll() {
+        var files = document.getElementById('files');
+        var item = document.getElementById('item');
+        files.value = '';
+        item.value = '';
+        clearOutput(files);
+        clearOutput(item);
+      }
+
+      function clearBoard() {
+        for(var i=0; i<25; i++) {
+          cells[i] = false;
+          document.getElementById('cell'+i).style.backgroundColor = 'white';
+        }
+        cells[12] = true;
+        document.getElementById('cell12').style.backgroundColor = 'limegreen';
+      }
+
+      function removeItem() {
+        deletingItem = !deletingItem;
+        if( deletingItem ) {
+          var disabled = true;
+          document.getElementById('removebutton').innerHTML = "Cancel removing";
+        }
+        else {
+          var disabled = false;
+          document.getElementById('removebutton').innerHTML = "Remove an item";
+        }
+        document.getElementById('item').disabled = disabled;
+        document.getElementById('add').disabled = disabled;
+        document.getElementById('files').disabled = disabled;
+        document.getElementById('clearall').disabled = disabled;
+        document.getElementById('clearboard').disabled = disabled;
+        document.getElementById('reset').disabled = disabled;
+        document.getElementById('shuffle').disabled = disabled;
+        document.getElementById('removeitem').innerHTML = "<br>Now click on the cell with the item you want to remove.<br>";
+      }
+        
+      /**
+       * Randomize array element order in-place.
+       * Using Durstenfeld shuffle algorithm.
+       * https://stackoverflow.com/a/12646864
+       */
+      function shuffleArray(array) {
+          for (var i = array.length - 1; i > 0; i--) {
+              var j = Math.floor(Math.random() * (i + 1));
+              var temp = array[i];
+              array[i] = array[j];
+              array[j] = temp;
+          }
+      }
+
+      function generateRandomNumBoard() {
+        var minBound = parseInt(document.getElementById("minbound").value);
+        var maxBound = parseInt(document.getElementById("maxbound").value);
+        cellOptions = [];
+        for (var i = minBound; i < maxBound; i++) {
+          cellOptions.push(i);
+        }
+        if(localStorage) {
+            localStorage["savedOptions"] = JSON.stringify(cellOptions);
+          }
+        shuffle();
+        // shuffleArray(nums);
+      }
+    </script>
+  </head>
+
+  <body onLoad="initialize();">
+    
+    <h1>Boring College Class Bingo</h1>
+    
+    <div style="font-size: 12px;">Add an individual cell by entering it here:&nbsp;<input type="text" id="item" name="item" onFocus="clearOutput(this);" /><button id="add" onClick="addOneItem();">Add</button></div>
+    <output align="center" id="itemAdded"></output>
+    
+    <div style="font-size: 12px;" id="uploader">Upload and replace card cell contents (*.txt, each item on a new line):&nbsp;<input type="file" id="files" name="files" /></div>
+    <output align="center" id="fileLoaded"></output>
+    <br>
+
+    <div style="font-size: 12px;">Generate random board with numbers between&nbsp;<input type="number" name="minbound" id="minbound" min="1" step="1" value="1">&nbsp;and&nbsp;<input type="number" name="maxbound" id="maxbound" min="1" step="1" value="100"><button id="randgenerate" onClick="generateRandomNumBoard();">Go!</button></div>
+    <br>
+
+    <div><button style="font-size: 12px;" id="clearall" onClick="clearAll();">Clear the junk from adding stuff</button>&nbsp;&nbsp;&nbsp;<button style="font-size: 12px;" id="clearboard" onClick="clearBoard();">Clear board</button></div>
+    <br>
+    <output align="center" id="fileContents"></output>
+    <div><button style="font-size: 12px;" id="removebutton" onClick="removeItem();">Remove an item</button>&nbsp;&nbsp;&nbsp;<button style="font-size: 12px;" id="reset" onClick="reset();">Reset to defaults</button></div>
+    <output id="removeitem" align="center"></output>
+    <br>
+    <div><button style="font-size: 18px;" id="shuffle" onClick="shuffle();">Shuffle!</button></div>
+    
+    <table align="center">
+      <tr>
+        <th>B</th>
+        <th>I</th>
+        <th>N</th>
+        <th>G</th>
+        <th>O</th>
+      </tr>
+      
+      <tr>
+        <td id="cell0" onClick="clicked(this);" onMouseOver="hoverOver(this, true);" onMouseOut="hoverOver(this, false);">&nbsp;</td>
+        <td id="cell1" onClick="clicked(this);" onMouseOver="hoverOver(this, true);" onMouseOut="hoverOver(this, false);">&nbsp;</td>
+        <td id="cell2" onClick="clicked(this);" onMouseOver="hoverOver(this, true);" onMouseOut="hoverOver(this, false);">&nbsp;</td>
+        <td id="cell3" onClick="clicked(this);" onMouseOver="hoverOver(this, true);" onMouseOut="hoverOver(this, false);">&nbsp;</td>
+        <td id="cell4" onClick="clicked(this);" onMouseOver="hoverOver(this, true);" onMouseOut="hoverOver(this, false);">&nbsp;</td>
+      </tr>
+      
+      <tr>
+        <td id="cell5" onClick="clicked(this);" onMouseOver="hoverOver(this, true);" onMouseOut="hoverOver(this, false);">&nbsp;</td>
+        <td id="cell6" onClick="clicked(this);" onMouseOver="hoverOver(this, true);" onMouseOut="hoverOver(this, false);">&nbsp;</td>
+        <td id="cell7" onClick="clicked(this);" onMouseOver="hoverOver(this, true);" onMouseOut="hoverOver(this, false);">&nbsp;</td>
+        <td id="cell8" onClick="clicked(this);" onMouseOver="hoverOver(this, true);" onMouseOut="hoverOver(this, false);">&nbsp;</td>
+        <td id="cell9" onClick="clicked(this);" onMouseOver="hoverOver(this, true);" onMouseOut="hoverOver(this, false);">&nbsp;</td>
+      </tr>
+      
+      <tr>
+        <td id="cell10" onClick="clicked(this);" onMouseOver="hoverOver(this, true);" onMouseOut="hoverOver(this, false);">&nbsp;</td>
+        <td id="cell11" onClick="clicked(this);" onMouseOver="hoverOver(this, true);" onMouseOut="hoverOver(this, false);">&nbsp;</td>
+        <td id="cell12" onMouseOver="this.style.backgroundColor='green';" onMouseOut="this.style.backgroundColor='limegreen';"><strong>FREE SPACE</strong><br><br>Student on Facebook<br><br><strong>FREE SPACE</strong></td>
+        <td id="cell13" onClick="clicked(this);" onMouseOver="hoverOver(this, true);" onMouseOut="hoverOver(this, false);">&nbsp;</td>
+        <td id="cell14" onClick="clicked(this);" onMouseOver="hoverOver(this, true);" onMouseOut="hoverOver(this, false);">&nbsp;</td>
+      </tr>
+      
+      <tr>
+        <td id="cell15" onClick="clicked(this);" onMouseOver="hoverOver(this, true);" onMouseOut="hoverOver(this, false);">&nbsp;</td>
+        <td id="cell16" onClick="clicked(this);" onMouseOver="hoverOver(this, true);" onMouseOut="hoverOver(this, false);">&nbsp;</td>
+        <td id="cell17" onClick="clicked(this);" onMouseOver="hoverOver(this, true);" onMouseOut="hoverOver(this, false);">&nbsp;</td>
+        <td id="cell18" onClick="clicked(this);" onMouseOver="hoverOver(this, true);" onMouseOut="hoverOver(this, false);">&nbsp;</td>
+        <td id="cell19" onClick="clicked(this);" onMouseOver="hoverOver(this, true);" onMouseOut="hoverOver(this, false);">&nbsp;</td>
+      </tr>
+      
+      <tr>
+        <td id="cell20" onClick="clicked(this);" onMouseOver="hoverOver(this, true);" onMouseOut="hoverOver(this, false);">&nbsp;</td>
+        <td id="cell21" onClick="clicked(this);" onMouseOver="hoverOver(this, true);" onMouseOut="hoverOver(this, false);">&nbsp;</td>
+        <td id="cell22" onClick="clicked(this);" onMouseOver="hoverOver(this, true);" onMouseOut="hoverOver(this, false);">&nbsp;</td>
+        <td id="cell23" onClick="clicked(this);" onMouseOver="hoverOver(this, true);" onMouseOut="hoverOver(this, false);">&nbsp;</td>
+        <td id="cell24" onClick="clicked(this);" onMouseOver="hoverOver(this, true);" onMouseOut="hoverOver(this, false);">&nbsp;</td>
+      </tr>
+    </table>
+  </body>
+
+</html>
